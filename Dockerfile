@@ -4,7 +4,7 @@ EXPOSE 2101
 
 WORKDIR /usr/src/app
 
-COPY ntripcaster.json ./
+RUN echo $JSON_CONFIG > ntripcaster.json
 
 COPY ntripcaster ./
 
