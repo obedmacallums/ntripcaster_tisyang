@@ -1,21 +1,13 @@
 # ntripcaster
-Ntrip broadcaster written in c and libev, support windows and linux.
 
-For now, it can now transmit data between ntrip servers and ntrip clients, with source table and authorization support.
+Caster NTRIP escrito en C sobre libev, compatible con Windows y Linux. Puede retransmitir datos entre clientes y servidores NTRIP, genera din\xC3\xA1micamente la tabla de fuentes y admite autenticaci\xC3\xB3n. Incluye un caster en Python (`pycaster`) que usa Trio.
 
-基于 libev 库实现的 C 语言版本 Ntripcaster 程序，支持 windows 和 linux。
+## Compilaci\xC3\xB3n
+Se requieren `cmake`, `git` y la biblioteca `libev`. En Windows solo se ha probado con las toolchains MinGW/MinGW-w64.
 
-目前可以支持 ntrip client 和 ntrip server 交换数据、动态源列表，以及密码验证（client 和 source 都支持）。
+En sistemas Linux, `libev` puede instalarse con `apt-get install libev-dev` (para Debian/Ubuntu).
 
-## Build 构建
-Need cmake and git and libev.
-
-Windows only test on MinGW/MinGW-w64 toolchains.
-
-需要 cmake 和 git 工具，以及系统安装了 libev (仅linux下需要，Debian/Ubuntu 可以使用 `apt-get install libev-dev` 安装）。
-
-Windows 编译仅在 MinGW/MinGW-w64 测试过。
-
+Pasos para compilar:
 
 ```shell
 git clone https://github.com/tisyang/ntripcaster.git
@@ -28,49 +20,45 @@ cmake ..
 make
 ```
 
-## Pre-build binaries 预编译二进制文件
-
+## Binarios precompilados
 https://github.com/tisyang/ntripcaster/releases/
 
-## Usage 使用
+## Uso
+El programa utiliza un archivo de configuraci\xC3\xB3n JSON, por defecto `ntripcaster.json`. Puede especificarse otro archivo como argumento: `ntripcaster.exe archivo.json`.
 
-程序使用 json 配置文件，默认配置文件名为 `ntripcaster.json` ，但可以通过命令行参数传入配置文件名: `ntripcaster.exe xxx.json`。
+Opciones del archivo de configuraci\xC3\xB3n:
 
-配置文件项说明：
++ `listen_addr`: cadena con la direcci\xC3\xB3n donde escuchar\xC3\xA1 el caster. Por defecto "0.0.0.0".
++ `listen_port`: entero con el puerto de escucha. Por defecto `2101`.
++ `max_client`: n\xC3\xBAmero m\xC3\xA1ximo de clientes NTRIP permitidos. `0` significa ilimitado. Por defecto `0`.
++ `max_source`: n\xC3\xBAmero m\xC3\xA1ximo de fuentes NTRIP permitidas. `0` significa ilimitado. Por defecto `0`.
++ `max_pending`: n\xC3\xBAmero m\xC3\xA1ximo de conexiones sin identificar permitidas. `0` significa ilimitado. Por defecto `10`.
++ `tokens_client`: objeto donde cada clave es `usuario:contrase\xC3\xB1a` y el valor indica los puntos de montaje accesibles. `*` permite cualquiera.
++ `tokens_source`: objeto donde cada clave es la contrase\xC3\xB1a de una fuente y el valor indica los puntos de montaje en los que puede publicar. `*` permite cualquiera.
++ `log_level`: cadena con el nivel de registro (`INFO`, `DEBUG`, etc.). Por defecto `INFO`.
++ `log_file`: cadena con la ruta del archivo de registro. Si es nulo se escribe en la salida est\xC3\xA1ndar.
 
-+ `listen_addr`: 字符串，程序将使用的 caster 服务地址，默认为 "0.0.0.0".
-+ `listen_port`: 整数，程序将使用的 caster 服务端口，默认为 2101.
-+ `max_client`: 整数，可接入的 ntrip client 客户端最大数量，0表示无限制。默认为0.
-+ `max_source`: 整数，可接入的 ntrip source 客户端最大数量，0表示无限制。默认为0.
-+ `max_pending`: 整数，允许的无标识客户端（即非client也非source）最大数量，0表示无限制。默认为10.
-+ `tokens_client`: object，每一项的名称表示一个 client 密码对，以冒号分隔的用户名和密码。值表示的可以访问的挂载点名称。挂载点支持 `*` 符号，表示可以访问任何挂载点。
-+ `tokens_source`: object, 每一项的名称表示一个 source 密码。值表示可以写入数据的挂载点名称。挂载点支持 `*` 符号，表示可以访问任何挂载点。
-+ `log_level`: 字符串，日志等级，例如 `INFO`、`DEBUG`，默认为 `INFO`。
-+ `log_file`: 字符串，日志输出文件，默认为空代表输出到标准输出。
-
-配置文件示例:
+Ejemplo de configuraci\xC3\xB3n:
 
 ```json
 {
-	"listen_addr":"0.0.0.0",
-	"listen_port": 2101,
-	"max_client": 0,
-	"max_source": 0,
-	"max_pending": 10,
-	"tokens_client": {
-		"test:test": "*"
-	},
+        "listen_addr": "0.0.0.0",
+        "listen_port": 2101,
+        "max_client": 0,
+        "max_source": 0,
+        "max_pending": 10,
+        "tokens_client": {
+                "test:test": "*"
+        },
         "tokens_source": {
                 "test": "*"
         },
         "log_level": "INFO",
         "log_file": null
 }
-
 ```
 
-## Contact Me 联系
-
+## Contacto
 lazy.tinker#outlook.com
 
-## test actions
+## Acciones de prueba
