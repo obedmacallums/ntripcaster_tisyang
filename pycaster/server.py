@@ -10,6 +10,39 @@ except ImportError:
     from protocol import parse_request
 
 
+async def send_source_table(stream, sources, lock):
+    """Send NTRIP source table to client."""
+    async with lock:
+        active_sources = list(sources.keys())
+    
+    # Build the table content first, matching the C implementation format
+    table_content = ""
+    for mount in active_sources:
+        # Format matching the C code: STR;mount;mount;RTCM3X;1005(10),1074-1084-1124(1);2;GNSS;NET;CL;0.00;0.00;1;1;None;None;B;N;0;
+        table_content += f"STR;{mount};{mount};RTCM3X;1005(10),1074-1084-1124(1);2;GNSS;NET;CL;0.00;0.00;1;1;None;None;B;N;0;\r\n"
+    
+    table_content += "ENDSOURCETABLE\r\n"
+    
+    # Build the NTRIP response (not HTTP), matching the C implementation
+    import time
+    from datetime import datetime
+    
+    now = datetime.utcnow()
+    timestr = now.strftime("%a %b %d %H:%M:%S %Y")
+    content_length = len(table_content.encode('utf-8'))
+    
+    response = f"SOURCETABLE 200 OK\r\n"
+    response += f"Server: https://github.com/tisyang/ntripcaster.git\r\n"
+    response += f"Date: {timestr} UTC\r\n"
+    response += f"Connection: close\r\n"
+    response += f"Content-Type: text/plain\r\n"
+    response += f"Content-Length: {content_length}\r\n"
+    response += f"\r\n"
+    response += table_content
+    
+    await stream.send_all(response.encode('utf-8'))
+
+
 async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sources, lock):
     addr = stream.socket.getpeername()
     logging.info("Connection from %s", addr)
@@ -30,12 +63,24 @@ async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sourc
         return
     mount = req['mountpoint']
     if req['type'] == 'client':
+        # Check if the requested mountpoint exists
+        async with lock:
+            has_mountpoint = mount and mount in sources
+        
+        # If no mountpoint specified, empty, root path, or mountpoint doesn't exist, send source table
+        if not mount or mount == '' or mount == '/' or not has_mountpoint:
+            logging.info("Client requesting source table from %s (mountpoint: '%s')", addr, mount)
+            await send_source_table(stream, sources, lock)
+            await stream.aclose()
+            return
+        
         token = req['auth'].split()[-1] if req['auth'] else ''
         if not match_token(client_tokens, token, mount):
             logging.warning("Client auth failed for mount %s from %s", mount, addr)
             await stream.send_all(b"HTTP/1.0 401 Unauthorized\r\n\r\n")
             await stream.aclose()
             return
+        
         async with lock:
             clients.setdefault(mount, set()).add(stream)
         await stream.send_all(b"ICY 200 OK\r\n")

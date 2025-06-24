@@ -15,7 +15,12 @@ def parse_request(data):
         parts = first.split()
         if len(parts) < 2:
             return None
-        mount = parts[1].lstrip('/')
+        path = parts[1]
+        # Remove leading slash and handle root requests
+        mount = path.lstrip('/')
+        # If path is just "/" or empty, it's a source table request
+        if path == '/' or mount == '':
+            mount = ''
         return {
             'type': 'client',
             'mountpoint': mount,
