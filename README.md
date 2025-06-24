@@ -45,6 +45,8 @@ https://github.com/tisyang/ntripcaster/releases/
 + `max_pending`: 整数，允许的无标识客户端（即非client也非source）最大数量，0表示无限制。默认为10.
 + `tokens_client`: object，每一项的名称表示一个 client 密码对，以冒号分隔的用户名和密码。值表示的可以访问的挂载点名称。挂载点支持 `*` 符号，表示可以访问任何挂载点。
 + `tokens_source`: object, 每一项的名称表示一个 source 密码。值表示可以写入数据的挂载点名称。挂载点支持 `*` 符号，表示可以访问任何挂载点。
++ `log_level`: 字符串，日志等级，例如 `INFO`、`DEBUG`，默认为 `INFO`。
++ `log_file`: 字符串，日志输出文件，默认为空代表输出到标准输出。
 
 配置文件示例:
 
@@ -58,9 +60,11 @@ https://github.com/tisyang/ntripcaster/releases/
 	"tokens_client": {
 		"test:test": "*"
 	},
-	"tokens_source": {
-		"test": "*"
-	}
+        "tokens_source": {
+                "test": "*"
+        },
+        "log_level": "INFO",
+        "log_file": null
 }
 
 ```

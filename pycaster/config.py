@@ -14,4 +14,6 @@ def load_config(path):
         "max_pending": int(cfg.get("max_pending", 10)),
         "tokens_client": cfg.get("tokens_client", {}),
         "tokens_source": cfg.get("tokens_source", {}),
+        "log_level": cfg.get("log_level", "INFO"),
+        "log_file": cfg.get("log_file"),
     }
