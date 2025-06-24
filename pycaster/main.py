@@ -1,4 +1,5 @@
 import argparse
+import logging
 import trio
 import sys
 import os
@@ -20,6 +21,13 @@ def main():
     parser.add_argument('config', nargs='?', default='ntripcaster.json', help='Path to config file')
     args = parser.parse_args()
     cfg = load_config(args.config)
+    log_level = getattr(logging, cfg['log_level'].upper(), logging.INFO)
+    logging.basicConfig(
+        level=log_level,
+        filename=cfg['log_file'],
+        format='%(asctime)s [%(levelname)s] %(message)s'
+    )
+    logging.info('Starting NTRIP caster')
     trio.run(run_server, cfg)
 
 

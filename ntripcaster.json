@@ -7,7 +7,9 @@
 	"tokens_client": {
 		"test:test": "*"
 	},
-	"tokens_source": {
-		"test": "*"
-	}
+        "tokens_source": {
+                "test": "*"
+        },
+        "log_level": "INFO",
+        "log_file": null
 }
