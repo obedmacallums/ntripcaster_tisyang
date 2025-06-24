@@ -1,6 +1,12 @@
 import trio
-from .tokens import prepare_tokens, match_token
-from .protocol import parse_request
+
+try:
+    from pycaster.tokens import prepare_tokens, match_token
+    from pycaster.protocol import parse_request
+except ImportError:
+    # If running directly, try relative imports
+    from tokens import prepare_tokens, match_token
+    from protocol import parse_request
 
 
 async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sources, lock):
