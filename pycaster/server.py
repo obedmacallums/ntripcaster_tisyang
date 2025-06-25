@@ -131,16 +131,24 @@ async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sourc
     
     # Get client disconnect delay from config (default 5 seconds)
     client_disconnect_delay = cfg.get('client_disconnect_delay', 5)
+    
     data = b''
-    while b'\r\n\r\n' not in data:
-        chunk = await stream.receive_some(1024)
-        if not chunk:
-            logging.info("Connection closed before headers from %s", addr)
-            return
-        data += chunk
-        if len(data) > 4096:
-            logging.warning("Header too large from %s", addr)
-            return
+    try:
+        while b'\r\n\r\n' not in data:
+            chunk = await stream.receive_some(1024)
+            if not chunk:
+                logging.info("Connection closed before headers from %s", addr)
+                return
+            data += chunk
+            if len(data) > 4096:
+                logging.warning("Header too large from %s", addr)
+                return
+    except (trio.BrokenResourceError, trio.ClosedResourceError, ConnectionResetError, OSError) as e:
+        logging.debug("Connection lost during header reading from %s: %s", addr, e)
+        return
+    except Exception as e:
+        logging.warning("Error reading headers from %s: %s", addr, e)
+        return
     req = parse_request(data)
     if not req:
         logging.warning("Malformed request from %s", addr)
@@ -240,29 +248,36 @@ async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sourc
         logging.info("Source connected to %s from %s", mount, addr)
         try:
             while True:
-                data = await stream.receive_some(8192)
-                if not data:
-                    break
-                
-                # Update source statistics
-                data_len = len(data)
-                async with lock:
-                    if stream in source_stats:
-                        source_stats[stream]['last_activity'] = time.time()
-                        source_stats[stream]['in_bytes'] += data_len
-                        source_stats[stream]['in_bps'] = data_len * 8
+                try:
+                    data = await stream.receive_some(8192)
+                    if not data:
+                        break
                     
-                    # Send data to clients and update their statistics
-                    for client in list(clients.get(mount, [])):
-                        try:
-                            await client.send_all(data)
-                            if client in client_stats:
-                                client_stats[client]['last_activity'] = time.time()
-                                client_stats[client]['out_bytes'] += data_len
-                                client_stats[client]['out_bps'] = data_len * 8
-                        except Exception:
-                            clients[mount].discard(client)
-                            client_stats.pop(client, None)
+                    # Update source statistics
+                    data_len = len(data)
+                    async with lock:
+                        if stream in source_stats:
+                            source_stats[stream]['last_activity'] = time.time()
+                            source_stats[stream]['in_bytes'] += data_len
+                            source_stats[stream]['in_bps'] = data_len * 8
+                        
+                        # Send data to clients and update their statistics
+                        for client in list(clients.get(mount, [])):
+                            try:
+                                await client.send_all(data)
+                                if client in client_stats:
+                                    client_stats[client]['last_activity'] = time.time()
+                                    client_stats[client]['out_bytes'] += data_len
+                                    client_stats[client]['out_bps'] = data_len * 8
+                            except Exception:
+                                clients[mount].discard(client)
+                                client_stats.pop(client, None)
+                except (trio.BrokenResourceError, trio.ClosedResourceError, ConnectionResetError, OSError) as e:
+                    logging.info("Source connection lost from %s (%s): %s", mount, addr, e)
+                    break
+                except Exception as e:
+                    logging.warning("Unexpected error reading from source %s (%s): %s", mount, addr, e)
+                    break
         finally:
             async with lock:
                 sources.pop(mount, None)
@@ -309,6 +324,7 @@ async def run_server(cfg):
     sources = {}
     client_stats = {}  # Track client connection statistics
     source_stats = {}  # Track source connection statistics
+    pending_connections = 0  # Track pending (unidentified) connections
     lock = trio.Lock()
     listeners = await trio.open_tcp_listeners(cfg['listen_port'], host=cfg['listen_addr'])
     logging.info('Listening on %s:%s', cfg['listen_addr'], cfg['listen_port'])
@@ -316,8 +332,47 @@ async def run_server(cfg):
         # Start the timeout monitor
         nursery.start_soon(timeout_monitor, clients, sources, client_stats, source_stats, lock)
         
+        async def handle_connection(stream):
+            nonlocal pending_connections
+            
+            # Increment pending connections count
+            async with lock:
+                pending_connections += 1
+                current_pending = pending_connections
+            
+            # Check max_pending limit
+            max_pending = cfg.get('max_pending', 10)
+            if max_pending > 0 and current_pending > max_pending:
+                try:
+                    addr = stream.socket.getpeername()
+                    logging.warning("Too many pending connections (%d), rejecting connection from %s", current_pending, addr)
+                except:
+                    logging.warning("Too many pending connections (%d), rejecting connection", current_pending)
+                async with lock:
+                    pending_connections -= 1
+                await stream.aclose()
+                return
+            
+            try:
+                await handle_agent(stream, cfg, client_tokens, source_tokens, 
+                                 clients, sources, client_stats, source_stats, lock)
+            except (trio.BrokenResourceError, trio.ClosedResourceError, ConnectionResetError, OSError) as e:
+                try:
+                    addr = stream.socket.getpeername()
+                    logging.debug("Connection error from %s: %s", addr, e)
+                except:
+                    logging.debug("Connection error: %s", e)
+            except Exception as e:
+                try:
+                    addr = stream.socket.getpeername()
+                    logging.error("Unexpected error handling connection from %s: %s", addr, e)
+                except:
+                    logging.error("Unexpected error handling connection: %s", e)
+            finally:
+                # Decrement pending connections count when connection ends
+                async with lock:
+                    if pending_connections > 0:
+                        pending_connections -= 1
+        
         for lst in listeners:
-            nursery.start_soon(trio.serve_listeners, 
-                             lambda s: handle_agent(s, cfg, client_tokens, source_tokens, 
-                                                   clients, sources, client_stats, source_stats, lock), 
-                             [lst])
+            nursery.start_soon(trio.serve_listeners, handle_connection, [lst])

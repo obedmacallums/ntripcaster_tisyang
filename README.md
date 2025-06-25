@@ -38,6 +38,7 @@ Configuration file options:
 + `max_client`: Integer, the maximum number of NTRIP client connections allowed. 0 means unlimited. Default is 0.
 + `max_source`: Integer, the maximum number of NTRIP source connections allowed. 0 means unlimited. Default is 0.
 + `max_pending`: Integer, the maximum number of unidentified clients (neither client nor source). 0 means unlimited. Default is 10.
++ `client_disconnect_delay`: Integer, seconds to wait before disconnecting clients when their source disconnects. Default is 5.
 + `tokens_client`: Object, each entry's name is a client credential pair (username:password). The value is the mountpoint(s) the client can access. Mountpoints support `*` to allow access to any mountpoint.
 + `tokens_source`: Object, each entry's name is a source password. The value is the mountpoint(s) the source can write to. Mountpoints support `*` to allow access to any mountpoint.
 + `log_level`: String, log level, e.g. `INFO`, `DEBUG`. Default is `INFO`.
@@ -52,6 +53,7 @@ Example configuration file:
 	"max_client": 0,
 	"max_source": 0,
 	"max_pending": 10,
+	"client_disconnect_delay": 5,
 	"tokens_client": {
 		"test:test": "*"
 	},
