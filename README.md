@@ -1,21 +1,16 @@
 # ntripcaster
-Ntrip broadcaster written in c and libev, support windows and linux.
+Ntrip broadcaster written in C and libev, supports Windows and Linux.
 
-For now, it can now transmit data between ntrip servers and ntrip clients, with source table and authorization support.
+Currently, it can transmit data between NTRIP servers and NTRIP clients, with source table and authorization support.
 
-基于 libev 库实现的 C 语言版本 Ntripcaster 程序，支持 windows 和 linux。
+## Build
+You need CMake, Git, and libev.
 
-目前可以支持 ntrip client 和 ntrip server 交换数据、动态源列表，以及密码验证（client 和 source 都支持）。
+Windows build has only been tested on MinGW/MinGW-w64 toolchains.
 
-## Build 构建
-Need cmake and git and libev.
+On Linux, you need to have CMake and Git installed, and libev (on Debian/Ubuntu you can install it with `apt-get install libev-dev`).
 
-Windows only test on MinGW/MinGW-w64 toolchains.
-
-需要 cmake 和 git 工具，以及系统安装了 libev (仅linux下需要，Debian/Ubuntu 可以使用 `apt-get install libev-dev` 安装）。
-
-Windows 编译仅在 MinGW/MinGW-w64 测试过。
-
+Windows build has only been tested on MinGW/MinGW-w64.
 
 ```shell
 git clone https://github.com/tisyang/ntripcaster.git
@@ -28,27 +23,27 @@ cmake ..
 make
 ```
 
-## Pre-build binaries 预编译二进制文件
+## Pre-built binaries
 
 https://github.com/tisyang/ntripcaster/releases/
 
-## Usage 使用
+## Usage
 
-程序使用 json 配置文件，默认配置文件名为 `ntripcaster.json` ，但可以通过命令行参数传入配置文件名: `ntripcaster.exe xxx.json`。
+The program uses a JSON configuration file. The default configuration file name is `ntripcaster.json`, but you can specify a different file name via command line: `ntripcaster.exe xxx.json`.
 
-配置文件项说明：
+Configuration file options:
 
-+ `listen_addr`: 字符串，程序将使用的 caster 服务地址，默认为 "0.0.0.0".
-+ `listen_port`: 整数，程序将使用的 caster 服务端口，默认为 2101.
-+ `max_client`: 整数，可接入的 ntrip client 客户端最大数量，0表示无限制。默认为0.
-+ `max_source`: 整数，可接入的 ntrip source 客户端最大数量，0表示无限制。默认为0.
-+ `max_pending`: 整数，允许的无标识客户端（即非client也非source）最大数量，0表示无限制。默认为10.
-+ `tokens_client`: object，每一项的名称表示一个 client 密码对，以冒号分隔的用户名和密码。值表示的可以访问的挂载点名称。挂载点支持 `*` 符号，表示可以访问任何挂载点。
-+ `tokens_source`: object, 每一项的名称表示一个 source 密码。值表示可以写入数据的挂载点名称。挂载点支持 `*` 符号，表示可以访问任何挂载点。
-+ `log_level`: 字符串，日志等级，例如 `INFO`、`DEBUG`，默认为 `INFO`。
-+ `log_file`: 字符串，日志输出文件，默认为空代表输出到标准输出。
++ `listen_addr`: String, the caster service address to use. Default is "0.0.0.0".
++ `listen_port`: Integer, the caster service port to use. Default is 2101.
++ `max_client`: Integer, the maximum number of NTRIP client connections allowed. 0 means unlimited. Default is 0.
++ `max_source`: Integer, the maximum number of NTRIP source connections allowed. 0 means unlimited. Default is 0.
++ `max_pending`: Integer, the maximum number of unidentified clients (neither client nor source). 0 means unlimited. Default is 10.
++ `tokens_client`: Object, each entry's name is a client credential pair (username:password). The value is the mountpoint(s) the client can access. Mountpoints support `*` to allow access to any mountpoint.
++ `tokens_source`: Object, each entry's name is a source password. The value is the mountpoint(s) the source can write to. Mountpoints support `*` to allow access to any mountpoint.
++ `log_level`: String, log level, e.g. `INFO`, `DEBUG`. Default is `INFO`.
++ `log_file`: String, log output file. Default is empty, which means output to standard output.
 
-配置文件示例:
+Example configuration file:
 
 ```json
 {
@@ -69,7 +64,7 @@ https://github.com/tisyang/ntripcaster/releases/
 
 ```
 
-## Contact Me 联系
+## Contact
 
 lazy.tinker#outlook.com
 
