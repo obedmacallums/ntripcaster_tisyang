@@ -4,8 +4,9 @@
 	"max_client": 0,
 	"max_source": 0,
 	"max_pending": 10,
+	"client_disconnect_delay": 60,
 	"tokens_client": {
-		"test:test": "*"
+		"test:test": "OKOK"
 	},
         "tokens_source": {
                 "test": "*"

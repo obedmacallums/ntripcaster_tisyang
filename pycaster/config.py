@@ -12,6 +12,7 @@ def load_config(path):
         "max_client": int(cfg.get("max_client", 0)),
         "max_source": int(cfg.get("max_source", 0)),
         "max_pending": int(cfg.get("max_pending", 10)),
+        "client_disconnect_delay": int(cfg.get("client_disconnect_delay", 5)),
         "tokens_client": cfg.get("tokens_client", {}),
         "tokens_source": cfg.get("tokens_source", {}),
         "log_level": cfg.get("log_level", "INFO"),

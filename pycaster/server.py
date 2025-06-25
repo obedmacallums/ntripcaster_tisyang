@@ -128,6 +128,9 @@ async def timeout_monitor(clients, sources, client_stats, source_stats, lock, in
 async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sources, client_stats, source_stats, lock):
     addr = stream.socket.getpeername()
     logging.info("Connection from %s", addr)
+    
+    # Get client disconnect delay from config (default 5 seconds)
+    client_disconnect_delay = cfg.get('client_disconnect_delay', 5)
     data = b''
     while b'\r\n\r\n' not in data:
         chunk = await stream.receive_some(1024)
@@ -182,16 +185,26 @@ async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sourc
         logging.info("Client connected to %s from %s", mount, addr)
         try:
             while True:
-                data = await stream.receive_some(1024)
-                if not data:
+                try:
+                    data = await stream.receive_some(1024)
+                    if not data:
+                        break
+                    # Update activity timestamp
+                    async with lock:
+                        if stream in client_stats:
+                            client_stats[stream]['last_activity'] = time.time()
+                except trio.ClosedResourceError:
+                    # Connection was closed, break the loop
                     break
-                # Update activity timestamp
-                async with lock:
-                    if stream in client_stats:
-                        client_stats[stream]['last_activity'] = time.time()
+                except Exception as e:
+                    logging.warning("Error reading from client %s on mount %s: %s", addr, mount, e)
+                    break
         finally:
             async with lock:
-                clients[mount].discard(stream)
+                if mount in clients:
+                    clients[mount].discard(stream)
+                    if not clients[mount]:  # Remove empty mountpoint
+                        clients.pop(mount, None)
                 client_stats.pop(stream, None)
             await stream.aclose()
         logging.info("Client disconnected from %s (%s)", mount, addr)
@@ -254,8 +267,39 @@ async def handle_agent(stream, cfg, client_tokens, source_tokens, clients, sourc
             async with lock:
                 sources.pop(mount, None)
                 source_stats.pop(stream, None)
+                
+                # Get clients connected to this mountpoint but don't remove them yet
+                clients_to_close = list(clients.get(mount, []))
+                
             await stream.aclose()
-        logging.info("Source disconnected from %s (%s)", mount, addr)
+            
+            # Wait a few seconds before closing clients in case source reconnects quickly
+            if clients_to_close:
+                logging.info("Source disconnected from %s (%s), waiting %d seconds before closing %d clients", 
+                           mount, addr, client_disconnect_delay, len(clients_to_close))
+                await trio.sleep(client_disconnect_delay)
+                
+                # Check if source reconnected during the wait
+                async with lock:
+                    if mount in sources:
+                        # Source reconnected, don't close clients
+                        logging.info("Source reconnected to %s, keeping clients connected", mount)
+                        return
+                    
+                    # Source didn't reconnect, close clients
+                    clients.pop(mount, None)
+                
+                # Close clients outside the lock to avoid blocking
+                for client in clients_to_close:
+                    try:
+                        await client.aclose()
+                        client_stats.pop(client, None)
+                    except:
+                        pass
+                        
+                logging.info("Closed %d clients for disconnected source %s", len(clients_to_close), mount)
+            else:
+                logging.info("Source disconnected from %s (%s)", mount, addr)
 
 
 async def run_server(cfg):
